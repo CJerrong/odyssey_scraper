@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"time"
 
@@ -28,9 +27,9 @@ func main() {
 
 	targetDate := getTargetSunday(state)
 
-	fmt.Printf("Checking at %s\n", time.Now().UTC().Format(time.RFC3339))
-	fmt.Println("Last notified:", state.LastNotifiedSunday)
-	fmt.Println("Target Sunday:", targetDate)
+	log.Printf("Checking at %s\n", time.Now().UTC().Format(time.RFC3339))
+	log.Println("Last notified:", state.LastNotifiedSunday)
+	log.Println("Target Sunday:", targetDate)
 
 	movies, err := fetchShowtimes(targetDate)
 	if err != nil {
@@ -38,7 +37,7 @@ func main() {
 	}
 
 	if !ticketsReleased(movies) {
-		fmt.Println("No tickets released yet.")
+		log.Println("No tickets released yet.")
 		return
 	}
 
@@ -47,12 +46,12 @@ func main() {
 		log.Fatalf("failed to send telegram message: %v", err)
 	}
 
-	fmt.Println("Telegram notification sent!")
+	log.Println("Telegram notification sent!")
 
 	state.LastNotifiedSunday = targetDate
 	if err := saveState(state); err != nil {
 		log.Fatalf("failed to save state (update available): %v", err)
 	}
 
-	fmt.Println("Updated state.json")
+	log.Println("Updated state.json")
 }
