@@ -1,8 +1,9 @@
 name: Odyssey Ticket Notifier
 
 on:
-  schedule:
-    - cron: "0 * * * *"
+  repository_dispatch:
+    types: [hourly-tick]
+    
   workflow_dispatch:
 
 permissions:
