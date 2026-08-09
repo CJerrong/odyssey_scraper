@@ -1,0 +1,6 @@
+.env
+
+# Go binary
+shaw-odyssey-notifier
+
+.vscode/
