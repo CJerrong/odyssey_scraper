@@ -1,0 +1,10 @@
+{
+  "monitors": {
+    "odyssey": {
+      "enabled": true
+    },
+    "probike": {
+      "enabled": true
+    }
+  }
+}

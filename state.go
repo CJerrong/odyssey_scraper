@@ -8,6 +8,11 @@ import (
 
 type State struct {
 	LastNotifiedSunday string `json:"lastNotifiedSunday"`
+	ProBike ProBikeState `json:"probike"`
+}
+
+type ProBikeState struct {
+	NotifiedVariants []string `json:"notifiedVariants"`
 }
 
 // Load last sunday notified state
@@ -60,4 +65,26 @@ func getNextSunday(now time.Time) string {
 	}
 
 	return now.AddDate(0, 0, days).Format("2006-01-02")
+}
+
+func containsVariant(variants []string, id string) bool {
+	for _, variantID := range variants {
+		if variantID == id {
+			return true
+		}
+	}
+
+	return false
+}
+
+func removeVariant(variants []string, id string) []string {
+	result := make([]string, 0, len(variants))
+
+	for _, variantID := range variants {
+		if variantID != id {
+			result = append(result, variantID)
+		}
+	}
+
+	return result
 }

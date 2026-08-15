@@ -27,6 +27,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
+          PROBIKE_CHAT_IDS: ${{ secrets.PROBIKE_CHAT_IDS }}
         run: go run .
 
       - name: Commit updated state
