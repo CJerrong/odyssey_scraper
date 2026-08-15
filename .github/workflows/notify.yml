@@ -1,4 +1,4 @@
-name: Odyssey Ticket Notifier
+name: Notifier
 
 on:
   repository_dispatch:
