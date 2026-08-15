@@ -4,10 +4,50 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"time"
 )
+
+func runOdysseyMonitor() error {
+	state, err := loadState()
+	if err != nil {
+		log.Fatalf("failed to load state: %v", err)
+	}
+
+	targetDate := getTargetSunday(state)
+
+	log.Printf("Checking at %s\n", time.Now().UTC().Format(time.RFC3339))
+	log.Println("Last notified:", state.LastNotifiedSunday)
+	log.Println("Target Sunday:", targetDate)
+
+	movies, err := fetchShowtimes(targetDate)
+	if err != nil {
+		log.Fatalf("failed to fetch showtimes: %v", err)
+	}
+
+	if !ticketsReleased(movies) {
+		log.Println("No tickets released yet.")
+		return nil
+	}
+
+	err = sendOdysseyTelegram(targetDate, movies)
+	if err != nil {
+		log.Fatalf("failed to send telegram message: %v", err)
+	}
+
+	log.Println("Telegram notification sent!")
+
+	state.LastNotifiedSunday = targetDate
+	if err := saveState(state); err != nil {
+		log.Fatalf("failed to save state (update available): %v", err)
+	}
+
+	log.Println("Updated state.json")
+
+	return nil
+}
 
 func ticketsReleased(movies []Movie) bool {
 	return len(filterIMAXShowtimes(movies)) > 0

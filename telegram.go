@@ -17,7 +17,7 @@ type telegramRequest struct {
 	Text   string `json:"text"`
 }
 
-func sendTelegram(targetDate string, movies []Movie) error {
+func sendOdysseyTelegram(targetDate string, movies []Movie) error {
 	token := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if token == "" {
 		return fmt.Errorf("TELEGRAM_BOT_TOKEN is not set")
@@ -30,6 +30,43 @@ func sendTelegram(targetDate string, movies []Movie) error {
 
 	message := buildTelegramMessage(targetDate, movies)
 
+	err := sendMessages(token, chatIDs, message)
+	if err != nil {
+		log.Printf("Error occured while sending messages: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func sendProbikeTelegram(variants []BikeVariant) error {
+	token := os.Getenv("TELEGRAM_BOT_TOKEN")
+	if token == "" {
+		return fmt.Errorf("TELEGRAM_BOT_TOKEN is not set")
+	}
+
+	chatIDs := os.Getenv("PROBIKE_CHAT_IDS")
+	if chatIDs == "" {
+		return fmt.Errorf("PROBIKE_CHAT_IDS is not set")
+	}
+
+	message := buildProBikeMessage(variants)
+
+	if message == "" {
+		log.Println("No ProBike size S stock.")
+		return nil
+	}
+
+	err := sendMessages(token, chatIDs, message)
+	if err != nil {
+		log.Printf("Error occured while sending messages: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+func sendMessages(token, chatIDs, message string) error {
 	var failed []string
 
 	for _, chatID := range strings.Split(chatIDs, ",") {
@@ -157,4 +194,33 @@ func buildTelegramMessage(targetDate string, movies []Movie) string {
 	))
 
 	return sb.String()
+}
+
+func buildProBikeMessage(variants []BikeVariant) string {
+	var inStock []string
+
+	for _, variant := range variants {
+		if variant.Available {
+			inStock = append(inStock, variant.Name)
+		}
+	}
+
+	if len(inStock) == 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+
+	builder.WriteString("🚲 *X-LAB RS5 is back in stock!*\n\n")
+	builder.WriteString("Available size S:\n")
+
+	for _, variant := range inStock {
+		builder.WriteString("• ")
+		builder.WriteString(variant)
+		builder.WriteString("\n")
+	}
+
+	builder.WriteString("\nhttps://www.probike.com.sg/products/x-lab-rs5")
+
+	return builder.String()
 }
