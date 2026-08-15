@@ -12,19 +12,27 @@ import (
 
 const probikeURL = "https://www.probike.com.sg/products/x-lab-rs5"
 
-type BikeVariant struct {
-	ID        string
-	Name      string
-	Available bool
+type ProductJSONLD struct {
+	Name       string           `json:"name"`
+	HasVariant []ProductVariant `json:"hasVariant"`
 }
 
-type ProductJSONLD struct {
+type ProductVariant struct {
+	ID     string `json:"@id"`
 	Name   string `json:"name"`
-	Offers []struct {
-		Name         string `json:"name"`
-		Availability string `json:"availability"`
-		URL          string `json:"url"`
-	} `json:"offers"`
+	Offers Offer  `json:"offers"`
+}
+
+type Offer struct {
+	Availability string `json:"availability"`
+	URL          string `json:"url"`
+}
+
+type BikeVariant struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Available bool   `json:"available"`
+	URL       string `json:"url"`
 }
 
 func runProBikeMonitor() error {
@@ -59,14 +67,14 @@ func runProBikeMonitor() error {
 					variant,
 				)
 
-				state.ProBike.NotifiedVariants =
-					append(
-						state.ProBike.NotifiedVariants,
-						variant.ID,
-					)
+				state.ProBike.NotifiedVariants = append(
+					state.ProBike.NotifiedVariants,
+					variant.ID,
+				)
 			}
 		} else {
-			// If bike is not available, remove it from notified list
+			// If the variant is no longer available, remove it so that we can notify again
+			// if it comes back into stock later
 			state.ProBike.NotifiedVariants =
 				removeVariant(
 					state.ProBike.NotifiedVariants,
@@ -76,7 +84,8 @@ func runProBikeMonitor() error {
 	}
 
 	if len(newlyAvailable) > 0 {
-		if err := sendProbikeTelegram(newlyAvailable); err != nil {
+		err := sendProbikeTelegram(newlyAvailable)
+		if err != nil {
 			return fmt.Errorf(
 				"failed to send ProBike notification: %w",
 				err,
@@ -95,54 +104,88 @@ func runProBikeMonitor() error {
 func getProBikeVariants() ([]BikeVariant, error) {
 	resp, err := http.Get(probikeURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch ProBike page: %w", err)
+		return nil, fmt.Errorf(
+			"failed to fetch ProBike page: %w",
+			err,
+		)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ProBike returned HTTP %d", resp.StatusCode)
+		return nil, fmt.Errorf(
+			"ProBike returned HTTP %d",
+			resp.StatusCode,
+		)
 	}
 
 	doc, err := goquery.NewDocumentFromReader(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse ProBike HTML: %w", err)
+		return nil, fmt.Errorf(
+			"failed to parse ProBike HTML: %w",
+			err,
+		)
 	}
 
 	var variants []BikeVariant
 
-	doc.Find("script[type='application/ld+json']").EachWithBreak(
-		func(_ int, s *goquery.Selection) bool {
+	doc.Find("script[type='application/ld+json']").Each(
+		func(_ int, s *goquery.Selection) {
 			var product ProductJSONLD
 
 			if err := json.Unmarshal(
 				[]byte(strings.TrimSpace(s.Text())),
 				&product,
 			); err != nil {
-				return true
+				return
 			}
 
 			if product.Name != "X-LAB RS5" {
-				return true
+				return
 			}
 
-			for _, offer := range product.Offers {
-				if !strings.HasSuffix(offer.Name, " / S") {
+			for _, variant := range product.HasVariant {
+				// Only care about size S.
+				if !strings.HasSuffix(variant.Name, " / S") {
 					continue
 				}
 
 				variants = append(variants, BikeVariant{
-					Name:      offer.Name,
-					Available: strings.Contains(offer.Availability, "InStock"),
+					ID:        getVariantID(variant.ID),
+					Name:      variant.Name,
+					Available: strings.Contains(
+						variant.Offers.Availability,
+						"InStock",
+					),
+					URL: variant.Offers.URL,
 				})
 			}
-
-			return false
 		},
 	)
 
 	if len(variants) == 0 {
-		return nil, fmt.Errorf("could not find any size S variants")
+		return nil, fmt.Errorf(
+			"could not find any size S bike variants",
+		)
 	}
 
 	return variants, nil
+}
+
+func getVariantID(id string) string {
+	const prefix = "?variant="
+	const suffix = "#variant"
+
+	start := strings.Index(id, prefix)
+	if start == -1 {
+		return id
+	}
+
+	start += len(prefix)
+
+	end := strings.Index(id[start:], suffix)
+	if end == -1 {
+		return id[start:]
+	}
+
+	return id[start : start+end]
 }
