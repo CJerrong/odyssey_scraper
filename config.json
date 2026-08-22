@@ -1,7 +1,7 @@
 {
   "monitors": {
     "odyssey": {
-      "enabled": true
+      "enabled": false
     },
     "probike": {
       "enabled": true
